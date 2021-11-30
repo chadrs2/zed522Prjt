@@ -11,6 +11,7 @@ This version uses iSAM to solve the problem incrementally
 from __future__ import print_function
 
 import sys
+import math
 import numpy as np
 import cv2
 import pyzed.sl as sl
@@ -126,12 +127,16 @@ def main():
             # adding it to iSAM.
             if i == 0:
                 # Add factors for each landmark observation
-                for j, point in enumerate(key_pts2):
+                j = 0
+                for point in key_pts2:
                     pix_pt = list(int(k) for k in point.pt)
-                    measurement = Point2(pix_pt[0], pix_pt[1])
-                    factor = GenericProjectionFactorCal3_S2(
-                        measurement, camera_noise, X(i), L(j), K)
-                    graph.push_back(factor)
+                    err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
+                    if not (math.isnan(point3D[0]) or math.isnan(point3D[1]) or math.isnan(point3D[2])):
+                        measurement = Point2(pix_pt[0], pix_pt[1])
+                        factor = GenericProjectionFactorCal3_S2(
+                            measurement, camera_noise, X(i), L(j), K)
+                        graph.push_back(factor)
+                        j += 1
 
                 # Add a prior on pose x0, with 0.3 rad std on roll,pitch,yaw and 0.1m x,y,z
                 pose_noise = gtsam.noiseModel.Diagonal.Sigmas(
@@ -150,18 +155,21 @@ def main():
                 graph.push_back(factor)
 
                 # Add initial guesses to all observed landmarks
-                for j, point in enumerate(key_pts2):
+                j = 0
+                for point in key_pts2:
                     # Get the 3D point cloud values for pixel (i,j)
                     pix_pt = list(int(k) for k in point.pt)
                     err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
                     init_lj = Point3(point3D[0],point3D[1],point3D[2])
-                    initial_estimate.insert(L(j), init_lj)
-                    total_obsv_features += 1
+                    if not (math.isnan(point3D[0]) or math.isnan(point3D[1]) or math.isnan(point3D[2])):
+                        initial_estimate.insert(L(j), init_lj)
+                        print(init_lj)
+                        total_obsv_features += 1
+                        # Add to dictionary
+                        prev_kp_dict[j] = j
+                        j += 1
+                # print(prev_kp_dict)
 
-                    # Add to dictionary
-                    prev_kp_dict[j] = j
-                
-                print(prev_kp_dict)
                 # Update previous variables
                 prev_kp = key_pts2
                 prev_des = descriptors2
@@ -183,33 +191,42 @@ def main():
                 for match in good_matches:
                     prev_img_feat_idx = match.queryIdx
                     curr_img_feat_idx = match.trainIdx
-                    j = prev_kp_dict[prev_img_feat_idx]
-                    curr_kp_dict[curr_img_feat_idx] = j
+                    if prev_img_feat_idx in prev_kp_dict:
+                        j = prev_kp_dict[prev_img_feat_idx]
 
-                    point = key_pts2[curr_img_feat_idx]
-                    pix_pt = list(int(k) for k in point.pt)
-                    measurement = Point2(pix_pt[0],pix_pt[1])
-                    factor = GenericProjectionFactorCal3_S2(
-                        measurement, camera_noise, X(i), L(j), K)
-                    graph.push_back(factor)
+                        point = key_pts2[curr_img_feat_idx]
+                        pix_pt = list(int(k) for k in point.pt)
+                        err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
+                        if not (math.isnan(point3D[0]) or math.isnan(point3D[1]) or math.isnan(point3D[2])):
+                            measurement = Point2(pix_pt[0],pix_pt[1])
+                            factor = GenericProjectionFactorCal3_S2(
+                                measurement, camera_noise, X(i), L(j), K)
+                            graph.push_back(factor)
+                            curr_kp_dict[curr_img_feat_idx] = j
 
-                print(curr_kp_dict)
+                # print(curr_kp_dict)
+                # print("Total observed features:",total_obsv_features)
                 # Add in remaining factors that have been newly observed
                 for l, point in enumerate(key_pts2):
+                    # print("L",l,"--",curr_kp_dict)
                     if not (l in curr_kp_dict):
-                        curr_kp_dict[l] = total_obsv_features # value is last index
+                        # print("Poss inserting new landmark")
                         pix_pt = list(int(k) for k in point.pt)
-                        measurement = Point2(pix_pt[0],pix_pt[1])
-                        factor = GenericProjectionFactorCal3_S2(
-                            measurement, camera_noise, X(i), L(curr_kp_dict[l]), K)
-                        graph.push_back(factor)
-
-                        # Add initial guesses to newly observed landmarks
                         err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
-                        init_lj = Point3(point3D[0],point3D[1],point3D[2])
-                        initial_estimate.insert(L(curr_kp_dict[l]), init_lj)
-                        total_obsv_features += 1
+                        if not (math.isnan(point3D[0]) or math.isnan(point3D[1]) or math.isnan(point3D[2])):
+                            # print("Inserting new landmark")
+                            curr_kp_dict[l] = total_obsv_features # value is last index
+                            measurement = Point2(pix_pt[0],pix_pt[1])
+                            factor = GenericProjectionFactorCal3_S2(
+                                measurement, camera_noise, X(i), L(curr_kp_dict[l]), K)
+                            graph.push_back(factor)
 
+                            # Add initial guesses to newly observed landmarks
+                            init_lj = Point3(point3D[0],point3D[1],point3D[2])
+                            # print(init_lj)
+                            initial_estimate.insert(L(curr_kp_dict[l]), init_lj)
+                            total_obsv_features += 1
+                # print(curr_kp_dict)
 
                 # Update iSAM with the new factors
                 isam.update(graph, initial_estimate)
