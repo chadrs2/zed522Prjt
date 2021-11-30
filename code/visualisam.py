@@ -13,7 +13,7 @@ from __future__ import print_function
 import sys
 import numpy as np
 import cv2
-from pyzed.sl import sl
+import pyzed.sl as sl
 import gtsam
 from gtsam.examples import SFMdata
 from gtsam import (Cal3_S2, GenericProjectionFactorCal3_S2,
@@ -152,7 +152,7 @@ def main():
                 for j, point in enumerate(key_pts2):
                     # Get the 3D point cloud values for pixel (i,j)
                     pix_pt = list(int(k) for k in point.pt)
-                    point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
+                    err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
                     init_lj = Point3(point3D[0],point3D[1],point3D[2])
                     initial_estimate.insert(L(j), init_lj)
 
@@ -192,7 +192,7 @@ def main():
 
                 # Add in remaining factors that have been newly observed
                 for l, point in enumerate(key_pts2):
-                    if not curr_kp_dict.has_key(l):
+                    if l in curr_kp_dict:
                         curr_kp_dict[l] = len(curr_kp_dict) # value is last index
                         pix_pt = list(int(k) for k in point.pt)
                         measurement = Point2(pix_pt[0],pix_pt[1])
