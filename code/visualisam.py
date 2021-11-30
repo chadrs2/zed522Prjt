@@ -84,6 +84,7 @@ def main():
     prev_img = np.empty((zed.get_camera_information().camera_resolution.width, zed.get_camera_information().camera_resolution.height,3),dtype=np.uint8)
     prev_kp = None
     prev_des = None
+    prev_kp_dict = {}
     while True:
         err = zed.grab(runtime)
         if err == sl.ERROR_CODE.SUCCESS:
@@ -102,13 +103,13 @@ def main():
             # Extract features from image
             key_pts2, descriptors2 = sift.detectAndCompute(img2_gray,None)
 
-            # Add factors for each landmark observation
-            for j, point in enumerate(key_pts2):
-                pix_pt = list(int(k) for k in point.pt)
-                measurement = Point2(pix_pt[0], pix_pt[1])
-                factor = GenericProjectionFactorCal3_S2(
-                    measurement, camera_noise, X(i), L(j), K)
-                graph.push_back(factor)
+            # # Add factors for each landmark observation
+            # for j, point in enumerate(key_pts2):
+            #     pix_pt = list(int(k) for k in point.pt)
+            #     measurement = Point2(pix_pt[0], pix_pt[1])
+            #     factor = GenericProjectionFactorCal3_S2(
+            #         measurement, camera_noise, X(i), L(j), K)
+            #     graph.push_back(factor)
 
             # Initialize camera frame variables (TODO: poss. change these initialization params)
             noise = Pose3(r=Rot3.Rodrigues(-0.1, 0.2, 0.25),
@@ -123,6 +124,14 @@ def main():
             # Also, as iSAM solves incrementally, we must wait until each is observed at least twice before
             # adding it to iSAM.
             if i == 0:
+                # Add factors for each landmark observation
+                for j, point in enumerate(key_pts2):
+                    pix_pt = list(int(k) for k in point.pt)
+                    measurement = Point2(pix_pt[0], pix_pt[1])
+                    factor = GenericProjectionFactorCal3_S2(
+                        measurement, camera_noise, X(i), L(j), K)
+                    graph.push_back(factor)
+
                 # Add a prior on pose x0, with 0.3 rad std on roll,pitch,yaw and 0.1m x,y,z
                 pose_noise = gtsam.noiseModel.Diagonal.Sigmas(
                     np.array([0.3, 0.3, 0.3, 0.1, 0.1, 0.1]))
@@ -146,7 +155,51 @@ def main():
                     point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
                     init_lj = Point3(point3D[0],point3D[1],point3D[2])
                     initial_estimate.insert(L(j), init_lj)
+
+                    # Add to dictionary
+                    prev_kp_dict[j] = j
+
+                # Update previous variables
+                prev_kp = key_pts2
+                prev_des = descriptors2
+                prev_img = img2_rgb
             else:
+                curr_kp_dict = {}
+                #-- Matching descriptor vectors with a FLANN based matcher
+                # Since SIFT is a floating-point descriptor NORM_L2 is used
+                matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_FLANNBASED)
+                knn_matches = matcher.knnMatch(prev_des, descriptors2, 2)
+                #-- Filter matches using the Lowe's ratio test
+                ratio_thresh = 0.7
+                good_matches = []
+                for m,n in knn_matches:
+                    if m.distance < ratio_thresh * n.distance:
+                        good_matches.append(m)
+                
+                # Appropriately add in factors correlated to matched features from previous image        
+                for match in good_matches:
+                    prev_img_feat_idx = match.queryIdx
+                    curr_img_feat_idx = match.trainIdx
+                    j = prev_kp_dict[prev_img_feat_idx]
+                    curr_kp_dict[curr_img_feat_idx] = j
+
+                    point = key_pts2[curr_img_feat_idx]
+                    pix_pt = list(int(k) for k in point.pt)
+                    measurement = Point2(pix_pt[0],pix_pt[1])
+                    factor = GenericProjectionFactorCal3_S2(
+                        measurement, camera_noise, X(i), L(j), K)
+                    graph.push_back(factor)
+
+                # Add in remaining factors that have been newly observed
+                for l, point in enumerate(key_pts2):
+                    if not curr_kp_dict.has_key(l):
+                        curr_kp_dict[l] = len(curr_kp_dict) # value is last index
+                        pix_pt = list(int(k) for k in point.pt)
+                        measurement = Point2(pix_pt[0],pix_pt[1])
+                        factor = GenericProjectionFactorCal3_S2(
+                            measurement, camera_noise, X(i), L(curr_kp_dict[l]), K)
+                        graph.push_back(factor)
+
                 # Update iSAM with the new factors
                 isam.update(graph, initial_estimate)
                 current_estimate = isam.estimate()
@@ -158,34 +211,11 @@ def main():
                 graph.resize(0)
                 initial_estimate.clear()
 
-
-            # if prev_kp == None:
-            #     prev_kp = key_pts2
-            #     prev_des = descriptors2
-            #     prev_img = img2_rgb
-            # else:
-            #     #-- Matching descriptor vectors with a FLANN based matcher
-            #     # Since SIFT is a floating-point descriptor NORM_L2 is used
-            #     matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_FLANNBASED)
-            #     knn_matches = matcher.knnMatch(prev_des, descriptors2, 2)
-            #     #-- Filter matches using the Lowe's ratio test
-            #     ratio_thresh = 0.7
-            #     good_matches = []
-            #     for m,n in knn_matches:
-            #         if m.distance < ratio_thresh * n.distance:
-            #             good_matches.append(m)
-            #     #-- Draw matches
-            #     img_matches = np.empty((max(prev_img.shape[0], img2_rgb.shape[0]), prev_img.shape[1]+img2_rgb.shape[1], 3), dtype=np.uint8)
-            #     cv2.drawMatches(prev_img, prev_kp, img2_rgb, key_pts2, good_matches, img_matches, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-            #     #-- Show detected matches
-            #     cv2.imshow('Good Matches', img_matches)
-            #     cv2.waitKey(0)
-            #     cv2.destroyAllWindows()
-
-            #     # Update previous variables
-            #     prev_kp = key_pts2
-            #     prev_des = descriptors2
-            #     prev_img = img2_rgb
+                # Update previous variables
+                prev_kp_dict = curr_kp_dict
+                prev_kp = key_pts2
+                prev_des = descriptors2
+                prev_img = img2_rgb
 
         elif err == sl.ERROR_CODE.END_OF_SVOFILE_REACHED:
             print("SVO end has been reached.")# Looping back to first frame")

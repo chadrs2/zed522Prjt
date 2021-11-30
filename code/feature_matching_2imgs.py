@@ -85,6 +85,16 @@ def main():
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()
 
+                #-- Draw corresponding keypoint at 0
+                # out_img1 = np.empty((prev_img.shape[0], prev_img.shape[1], prev_img.shape[2]),dtype=np.uint8)
+                # out_img2 = np.empty((img2_rgb.shape[0], img2_rgb.shape[1], img2_rgb.shape[2]),dtype=np.uint8)
+                # cv2.drawKeypoints(prev_img,[prev_kp[good_matches[0].queryIdx]],out_img1)
+                # cv2.drawKeypoints(img2_rgb,[key_pts2[good_matches[0].trainIdx]],out_img2)
+                # cv2.imshow("Image 1:",out_img1)
+                # cv2.imshow("Image 2:",out_img2)
+                # cv2.waitKey(0)
+                # cv2.destroyAllWindows()
+
                 # Update previous variables
                 prev_kp = key_pts2
                 prev_des = descriptors2
