@@ -200,6 +200,11 @@ def main():
                             measurement, camera_noise, X(i), L(curr_kp_dict[l]), K)
                         graph.push_back(factor)
 
+                        # Add initial guesses to newly observed landmarks
+                        err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
+                        init_lj = Point3(point3D[0],point3D[1],point3D[2])
+                        initial_estimate.insert(L(curr_kp_dict[l]), init_lj)
+
                 # Update iSAM with the new factors
                 isam.update(graph, initial_estimate)
                 current_estimate = isam.estimate()
