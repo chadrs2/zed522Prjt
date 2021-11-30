@@ -85,6 +85,7 @@ def main():
     prev_kp = None
     prev_des = None
     prev_kp_dict = {}
+    total_obsv_features = 0
     while True:
         err = zed.grab(runtime)
         if err == sl.ERROR_CODE.SUCCESS:
@@ -155,10 +156,12 @@ def main():
                     err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
                     init_lj = Point3(point3D[0],point3D[1],point3D[2])
                     initial_estimate.insert(L(j), init_lj)
+                    total_obsv_features += 1
 
                     # Add to dictionary
                     prev_kp_dict[j] = j
-
+                
+                print(prev_kp_dict)
                 # Update previous variables
                 prev_kp = key_pts2
                 prev_des = descriptors2
@@ -190,10 +193,11 @@ def main():
                         measurement, camera_noise, X(i), L(j), K)
                     graph.push_back(factor)
 
+                print(curr_kp_dict)
                 # Add in remaining factors that have been newly observed
                 for l, point in enumerate(key_pts2):
-                    if l in curr_kp_dict:
-                        curr_kp_dict[l] = len(curr_kp_dict) # value is last index
+                    if not (l in curr_kp_dict):
+                        curr_kp_dict[l] = total_obsv_features # value is last index
                         pix_pt = list(int(k) for k in point.pt)
                         measurement = Point2(pix_pt[0],pix_pt[1])
                         factor = GenericProjectionFactorCal3_S2(
@@ -204,6 +208,8 @@ def main():
                         err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
                         init_lj = Point3(point3D[0],point3D[1],point3D[2])
                         initial_estimate.insert(L(curr_kp_dict[l]), init_lj)
+                        total_obsv_features += 1
+
 
                 # Update iSAM with the new factors
                 isam.update(graph, initial_estimate)
