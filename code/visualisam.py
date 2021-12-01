@@ -105,14 +105,6 @@ def main():
             # Extract features from image
             key_pts2, descriptors2 = sift.detectAndCompute(img2_gray,None)
 
-            # # Add factors for each landmark observation
-            # for j, point in enumerate(key_pts2):
-            #     pix_pt = list(int(k) for k in point.pt)
-            #     measurement = Point2(pix_pt[0], pix_pt[1])
-            #     factor = GenericProjectionFactorCal3_S2(
-            #         measurement, camera_noise, X(i), L(j), K)
-            #     graph.push_back(factor)
-
             # Initialize camera frame variables (TODO: poss. change these initialization params)
             noise = Pose3(r=Rot3.Rodrigues(-0.1, 0.2, 0.25),
                           t=Point3(0.05, -0.10, 0.20))
