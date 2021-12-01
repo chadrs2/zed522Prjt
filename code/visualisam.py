@@ -54,10 +54,10 @@ def visual_ISAM2_plot(result):
         i += 1
 
     # draw
-    axes.set_xlim3d(-40, 40)
-    axes.set_ylim3d(-40, 40)
-    axes.set_zlim3d(-40, 40)
-    plt.pause(1)
+    # axes.set_xlim3d(-40, 40)
+    # axes.set_ylim3d(-40, 40)
+    # axes.set_zlim3d(-40, 40)
+    # plt.pause(1)
 
 def main():
     """
@@ -128,9 +128,9 @@ def main():
         if err == sl.ERROR_CODE.SUCCESS:
             # Get frame count
             i = zed.get_svo_position()
-            if i >= 2:
+            print("------------------------ i = ", i)
+            if i >= 3:
                 # only get first 2 frames
-                print("finished retrieving two images")
                 break
 
             # A new image and depth is available if grab() returns SUCCESS
@@ -280,8 +280,8 @@ def main():
                 print('*' * 50)
                 print('Frame {}:'.format(i))
                 current_estimate.print_('Current estimate: ')
-                visual_ISAM2_plot(current_estimate)
-                plt.show()
+                # visual_ISAM2_plot(current_estimate)
+                # plt.show()
 
                 # Clear the factor graph and values for the next iteration
                 graph.resize(0)

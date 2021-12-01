@@ -119,7 +119,8 @@ def main():
         if err == sl.ERROR_CODE.SUCCESS:
             # Get frame count
             i = zed.get_svo_position()
-            if i >= 2:
+            print("------ i = ", i)
+            if i >= 4:
                 # only get first 2 frames
                 print("finished retrieving two images")
                 break
@@ -245,6 +246,7 @@ def main():
     print('*' * 50)
     print('Frame {}:'.format(i))
     current_estimate.print_('Current estimate: ')
+    
     # plotEstimates()
     # plt.ion()
     # visual_ISAM2_plot(current_estimate)
@@ -269,9 +271,9 @@ def main():
         gtsam_plot.plot_pose3(fignum, pose_i, 10)
         i += 1
 
-    # axes.set_xlim3d(-40, 40)
-    # axes.set_ylim3d(-40, 40)
-    # axes.set_zlim3d(-40, 40)
+    axes.set_xlim3d(-40, 40)
+    axes.set_ylim3d(-40, 40)
+    axes.set_zlim3d(-40, 40)
 
     plt.show()
 
