@@ -1,3 +1,5 @@
+#!usr/bin/python3
+
 """
 GTSAM Copyright 2010, Georgia Tech Research Corporation,
 Atlanta, Georgia 30332-0415
