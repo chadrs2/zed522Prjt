@@ -128,11 +128,11 @@ def main():
         if err == sl.ERROR_CODE.SUCCESS:
             # Get frame count
             i = zed.get_svo_position()
-            if i >= 2:
+            if i >= 5:
                 # only get first 2 frames
-                print("finished retrieving two images")
+                print("finished retrieving",i,"images")
                 break
-
+            print(i)
             # A new image and depth is available if grab() returns SUCCESS
             zed.retrieve_image(left_cam_rgba, sl.VIEW.LEFT) # Retrieve left image
             zed.retrieve_measure(depth_map, sl.MEASURE.DEPTH) # Retrieve depth
@@ -230,7 +230,7 @@ def main():
                 for m,n in knn_matches:
                     if m.distance < ratio_thresh * n.distance:
                         good_matches.append(m)
-                
+                print("Found matches:",len(good_matches))
                 # Appropriately add in factors correlated to matched features from previous image        
                 for match in good_matches:
                     prev_img_feat_idx = match.queryIdx
@@ -251,27 +251,30 @@ def main():
                 # print(curr_kp_dict)
                 # print("Total observed features:",total_obsv_features)
                 # Add in remaining factors that have been newly observed
-                # for l, point in enumerate(key_pts2):
-                #     # print("L",l,"--",curr_kp_dict)
-                #     if not (l in curr_kp_dict):
-                #         # print("Poss inserting new landmark")
-                #         pix_pt = list(int(k) for k in point.pt)
-                #         err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
-                #         if not (math.isnan(point3D[0]) or math.isnan(point3D[1]) or math.isnan(point3D[2])):
-                #             # print("Inserting new landmark")
-                #             curr_kp_dict[l] = total_obsv_features # value is last index
-                #             measurement = Point2(pix_pt[0],pix_pt[1])
-                #             factor = GenericProjectionFactorCal3_S2(
-                #                 measurement, camera_noise, X(i), L(curr_kp_dict[l]), K)
-                #             graph.push_back(factor)
+                for l, point in enumerate(key_pts2):
+                    # print("L",l,"--",curr_kp_dict)
+                    if not (l in curr_kp_dict):
+                        # print("Poss inserting new landmark")
+                        pix_pt = list(int(k) for k in point.pt)
+                        err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
+                        if not (math.isnan(point3D[0]) or math.isnan(point3D[1]) or math.isnan(point3D[2])):
+                            # print("Inserting new landmark")
+                            curr_kp_dict[l] = total_obsv_features # value is last index
+                            measurement = Point2(pix_pt[0],pix_pt[1])
+                            factor = GenericProjectionFactorCal3_S2(
+                                measurement, camera_noise, X(i), L(curr_kp_dict[l]), K)
+                            graph.push_back(factor)
 
-                #             # TODO: poss. do prior here on each of these new landmarks
+                            # Add initial guesses to newly observed landmarks
+                            init_lj = Point3(point3D[0],point3D[1],point3D[2])
+                            # print(init_lj)
+                            initial_estimate.insert(L(curr_kp_dict[l]), init_lj)
+                            total_obsv_features += 1
 
-                #             # Add initial guesses to newly observed landmarks
-                #             init_lj = Point3(point3D[0],point3D[1],point3D[2])
-                #             # print(init_lj)
-                #             initial_estimate.insert(L(curr_kp_dict[l]), init_lj)
-                #             total_obsv_features += 1
+                            # TODO: poss. do prior here on each of these new landmarks
+                            point_noise = gtsam.noiseModel.Isotropic.Sigma(3, 0.1*1000)
+                            factor = PriorFactorPoint3(L(curr_kp_dict[l]), init_lj, point_noise)
+                            graph.push_back(factor)
                 # print(curr_kp_dict)
 
                 # Update iSAM with the new factors
@@ -280,8 +283,8 @@ def main():
                 print('*' * 50)
                 print('Frame {}:'.format(i))
                 current_estimate.print_('Current estimate: ')
-                visual_ISAM2_plot(current_estimate)
-                plt.show()
+                # visual_ISAM2_plot(current_estimate)
+                # plt.show()
 
                 # Clear the factor graph and values for the next iteration
                 graph.resize(0)
