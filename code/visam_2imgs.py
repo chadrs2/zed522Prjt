@@ -188,7 +188,6 @@ def main():
         pix_pt = list(int(k) for k in pt1.pt)
         err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
         if not (math.isnan(point3D[0]) or math.isnan(point3D[1]) or math.isnan(point3D[2])):
-            print(j)
             measurement = Point2(pix_pt[0],pix_pt[1])
             factor = GenericProjectionFactorCal3_S2(
                 measurement, camera_noise, X(0), L(j), K)

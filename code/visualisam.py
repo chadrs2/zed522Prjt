@@ -23,6 +23,41 @@ from gtsam import (Cal3_S2, GenericProjectionFactorCal3_S2,
                    PriorFactorPoint3, PriorFactorPose3, Rot3,
                    PinholeCameraCal3_S2, Values, Point3)
 from gtsam.symbol_shorthand import X, L
+import gtsam.utils.plot as gtsam_plot
+from mpl_toolkits.mplot3d import Axes3D
+
+def visual_ISAM2_plot(result):
+    """
+    VisualISAMPlot plots current state of ISAM2 object
+    Author: Ellon Paiva
+    Based on MATLAB version by: Duy Nguyen Ta and Frank Dellaert
+    """
+
+    # Declare an id for the figure
+    fignum = 0
+
+    fig = plt.figure(fignum)
+    axes = fig.gca(projection='3d')
+    plt.cla()
+
+    # Plot points
+    # Can't use data because current frame might not see all points
+    # marginals = Marginals(isam.getFactorsUnsafe(), isam.calculateEstimate())
+    # gtsam.plot_3d_points(result, [], marginals)
+    gtsam_plot.plot_3d_points(fignum, result, 'rx')
+
+    # Plot cameras
+    i = 0
+    while result.exists(X(i)):
+        pose_i = result.atPose3(X(i))
+        gtsam_plot.plot_pose3(fignum, pose_i, 10)
+        i += 1
+
+    # draw
+    axes.set_xlim3d(-40, 40)
+    axes.set_ylim3d(-40, 40)
+    axes.set_zlim3d(-40, 40)
+    plt.pause(1)
 
 def main():
     """
@@ -149,15 +184,15 @@ def main():
                 factor = PriorFactorPose3(X(0), pose0, pose_noise)
                 graph.push_back(factor)
 
-                # Add a prior on landmark l0 # TODO: try omitting this step, or putting a prior on every new landmark
-                point_noise = gtsam.noiseModel.Isotropic.Sigma(3, 0.1*1000)
-                # TODO: set prior to be same as position of first features
-                tmp_pix_pt = list(int(k) for k in key_pts2[0].pt)
-                err, pt3D = point_cloud.get_value(tmp_pix_pt[0],tmp_pix_pt[1])
-                pt0 = Point3(pt3D[0],pt3D[1],pt3D[2])
-                # pt0 = Point3(0,0,0)
-                factor = PriorFactorPoint3(L(0), pt0, point_noise)
-                graph.push_back(factor)
+                # # Add a prior on landmark l0 # TODO: try omitting this step, or putting a prior on every new landmark
+                # point_noise = gtsam.noiseModel.Isotropic.Sigma(3, 0.1*1000)
+                # # TODO: set prior to be same as position of first features
+                # tmp_pix_pt = list(int(k) for k in key_pts2[0].pt)
+                # err, pt3D = point_cloud.get_value(tmp_pix_pt[0],tmp_pix_pt[1])
+                # pt0 = Point3(pt3D[0],pt3D[1],pt3D[2])
+                # # pt0 = Point3(0,0,0)
+                # factor = PriorFactorPoint3(L(0), pt0, point_noise)
+                # graph.push_back(factor)
 
                 # Add initial guesses to all observed landmarks
                 j = 0
@@ -168,7 +203,11 @@ def main():
                     init_lj = Point3(point3D[0],point3D[1],point3D[2])
                     if not (math.isnan(point3D[0]) or math.isnan(point3D[1]) or math.isnan(point3D[2])):
                         initial_estimate.insert(L(j), init_lj)
-                        # print(init_lj)
+
+                        point_noise = gtsam.noiseModel.Isotropic.Sigma(3, 0.1*1000)
+                        factor = PriorFactorPoint3(L(j), init_lj, point_noise)
+                        graph.push_back(factor)
+
                         total_obsv_features += 1
                         # Add to dictionary
                         prev_kp_dict[j] = j
@@ -241,7 +280,8 @@ def main():
                 print('*' * 50)
                 print('Frame {}:'.format(i))
                 current_estimate.print_('Current estimate: ')
-                # plotEstimates()
+                visual_ISAM2_plot(current_estimate)
+                plt.show()
 
                 # Clear the factor graph and values for the next iteration
                 graph.resize(0)
