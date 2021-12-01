@@ -92,7 +92,8 @@ def main():
         if err == sl.ERROR_CODE.SUCCESS:
             # Get frame count
             i = zed.get_svo_position()
-
+            if i >= 2:  # Temp to only look at first 2 images
+                break
             # A new image and depth is available if grab() returns SUCCESS
             zed.retrieve_image(left_cam_rgba, sl.VIEW.LEFT) # Retrieve left image
             zed.retrieve_measure(depth_map, sl.MEASURE.DEPTH) # Retrieve depth
@@ -142,7 +143,7 @@ def main():
 
                 # Add a prior on landmark l0
                 point_noise = gtsam.noiseModel.Isotropic.Sigma(3, 0.1)
-                pt0 = Point3(0,0,0)
+                pt0 = Point3(0,0,0)     # should we change this?
                 factor = PriorFactorPoint3(L(0), pt0, point_noise)
                 graph.push_back(factor)
 
