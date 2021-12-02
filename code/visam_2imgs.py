@@ -138,7 +138,7 @@ def main():
 
                 # Extract features from image
                 key_pts1, descriptors1 = sift.detectAndCompute(img1_gray,None)
-            elif i == 1:
+            else:
                 # Get left_cam image
                 img2_rgba = left_cam_rgba.get_data()
                 img2 = cv2.cvtColor(img2_rgba, cv2.COLOR_RGBA2RGB)
@@ -147,98 +147,99 @@ def main():
                 # Extract features from image
                 key_pts2, descriptors2 = sift.detectAndCompute(img2_gray,None)
 
-    #-- Matching descriptor vectors with a FLANN based matcher
-    # Since SIFT is a floating-point descriptor NORM_L2 is used
-    matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_FLANNBASED)
-    knn_matches = matcher.knnMatch(descriptors1, descriptors2, 2)
-    #-- Filter matches using the Lowe's ratio test
-    ratio_thresh = 0.7
-    good_matches = []
-    for m,n in knn_matches:
-        if m.distance < ratio_thresh * n.distance:
-            good_matches.append(m)
+                #-- Matching descriptor vectors with a FLANN based matcher
+                # Since SIFT is a floating-point descriptor NORM_L2 is used
+                matcher = cv2.DescriptorMatcher_create(cv2.DescriptorMatcher_FLANNBASED)
+                knn_matches = matcher.knnMatch(descriptors1, descriptors2, 2)
+                #-- Filter matches using the Lowe's ratio test
+                ratio_thresh = 0.7
+                good_matches = []
+                for m,n in knn_matches:
+                    if m.distance < ratio_thresh * n.distance:
+                        good_matches.append(m)
 
-    
-    # Initialize camera frame variables (TODO: poss. change these initialization params)
-    initial_xi = Pose3(
-        Rot3(1,0,0, 0,1,0, 0,0,1),
-        Point3(0,0,0)
-    )
-    # Add an initial guess for the current pose
-    initial_estimate.insert(X(0), initial_xi)
-    initial_estimate.insert(X(1), initial_xi)
+                
+                # Initialize camera frame variables (TODO: poss. change these initialization params)
+                initial_xi = Pose3(
+                    Rot3(1,0,0, 0,1,0, 0,0,1),
+                    Point3(0,0,0)
+                )
+                # Add an initial guess for the current pose
+                initial_estimate.insert(X(0), initial_xi)
+                initial_estimate.insert(X(1), initial_xi)
 
-    # Add a prior on pose x0, with 0.3 rad std on roll,pitch,yaw and 0.1m x,y,z
-    pose_noise = gtsam.noiseModel.Diagonal.Sigmas(
-        np.array([0.3, 0.3, 0.3, 0.1*1000, 0.1*1000, 0.1*1000]))
-    pose0 = Pose3(
-        Rot3(1,0,0, 0,1,0, 0,0,1),
-        Point3(0,0,0)
-    )
-    factor = PriorFactorPose3(X(0), pose0, pose_noise)
-    graph.push_back(factor)
-
-    curr_kp_dict = []
-    total_obsv_features = 0
-    j = 0
-    for match in good_matches:
-        img1_feat_idx = match.queryIdx
-        img2_feat_idx = match.trainIdx
-
-        pt1 = key_pts1[img1_feat_idx]
-        pix_pt = list(int(k) for k in pt1.pt)
-        err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
-        if not (math.isnan(point3D[0]) or math.isnan(point3D[1]) or math.isnan(point3D[2])):
-            measurement = Point2(pix_pt[0],pix_pt[1])
-            factor = GenericProjectionFactorCal3_S2(
-                measurement, camera_noise, X(0), L(j), K)
-            graph.push_back(factor)
-
-            curr_kp_dict.append(img1_feat_idx) # newly added
-
-            init_lj = Point3(point3D[0],point3D[1],point3D[2])
-            initial_estimate.insert(L(j), init_lj)
-            total_obsv_features += 1
-
-            pt2 = key_pts2[img2_feat_idx]
-            pix_pt2 = list(int(k) for k in pt2.pt)
-            measurement = Point2(pix_pt2[0],pix_pt2[1])
-            factor = GenericProjectionFactorCal3_S2(
-                measurement, camera_noise, X(1), L(j), K)
-            graph.push_back(factor)
-
-            if True:
-                point_noise = gtsam.noiseModel.Isotropic.Sigma(3, .1*1000)
-                pt0 = Point3(point3D[0],point3D[1],point3D[2])
-                # pt0 = Point3(0,0,0)
-                factor = PriorFactorPoint3(L(j), pt0, point_noise)
-                graph.push_back(factor)
-            j += 1
-    # print(total_obsv_features)
-    for l, point in enumerate(key_pts1):
-        # print("L",l,"--",curr_kp_dict)
-        if not (l in curr_kp_dict):
-            # print("Poss inserting new landmark")
-            pix_pt = list(int(k) for k in point.pt)
-            err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
-            if not (math.isnan(point3D[0]) or math.isnan(point3D[1]) or math.isnan(point3D[2])):
-                # print("Inserting new landmark")
-                # curr_kp_dict[l] = total_obsv_features # value is last index
-                measurement = Point2(pix_pt[0],pix_pt[1])
-                factor = GenericProjectionFactorCal3_S2(
-                    measurement, camera_noise, X(0), L(total_obsv_features), K)
-                # print("total observations: ", total_obsv_features)
+                # Add a prior on pose x0, with 0.3 rad std on roll,pitch,yaw and 0.1m x,y,z
+                pose_noise = gtsam.noiseModel.Diagonal.Sigmas(
+                    np.array([0.3, 0.3, 0.3, 0.1*1000, 0.1*1000, 0.1*1000]))
+                pose0 = Pose3(
+                    Rot3(1,0,0, 0,1,0, 0,0,1),
+                    Point3(0,0,0)
+                )
+                factor = PriorFactorPose3(X(0), pose0, pose_noise)
                 graph.push_back(factor)
 
-                point_noise = gtsam.noiseModel.Isotropic.Sigma(3, .1*1000)
-                pt0 = Point3(point3D[0],point3D[1],point3D[2])
-                # pt0 = Point3(0,0,0)
-                factor = PriorFactorPoint3(L(total_obsv_features), pt0, point_noise)
-                graph.push_back(factor)
+                curr_kp_dict = []
+                total_obsv_features = 0
+                j = 0
+                for match in good_matches:
+                    img1_feat_idx = match.queryIdx
+                    img2_feat_idx = match.trainIdx
 
-                init_lj = Point3(point3D[0],point3D[1],point3D[2])
-                initial_estimate.insert(L(total_obsv_features), init_lj)
-                total_obsv_features += 1
+                    pt1 = key_pts1[img1_feat_idx]
+                    pix_pt = list(int(k) for k in pt1.pt)
+                    err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
+                    if not (math.isnan(point3D[0]) or math.isnan(point3D[1]) or math.isnan(point3D[2])):
+                        measurement = Point2(pix_pt[0],pix_pt[1])
+                        factor = GenericProjectionFactorCal3_S2(
+                            measurement, camera_noise, X(0), L(j), K)
+                        graph.push_back(factor)
+
+                        curr_kp_dict.append(img1_feat_idx) # newly added
+
+                        init_lj = Point3(point3D[0],point3D[1],point3D[2])
+                        initial_estimate.insert(L(j), init_lj)
+                        total_obsv_features += 1
+
+                        pt2 = key_pts2[img2_feat_idx]
+                        pix_pt2 = list(int(k) for k in pt2.pt)
+                        measurement = Point2(pix_pt2[0],pix_pt2[1])
+                        factor = GenericProjectionFactorCal3_S2(
+                            measurement, camera_noise, X(1), L(j), K)
+                        graph.push_back(factor)
+
+                        if True:
+                            point_noise = gtsam.noiseModel.Isotropic.Sigma(3, .1*1000)
+                            pt0 = Point3(point3D[0],point3D[1],point3D[2])
+                            # pt0 = Point3(0,0,0)
+                            factor = PriorFactorPoint3(L(j), pt0, point_noise)
+                            graph.push_back(factor)
+                        j += 1
+                        
+                        # print(total_obsv_features)
+                        for l, point in enumerate(key_pts1):
+                            # print("L",l,"--",curr_kp_dict)
+                            if not (l in curr_kp_dict):
+                                # print("Poss inserting new landmark")
+                                pix_pt = list(int(k) for k in point.pt)
+                                err, point3D = point_cloud.get_value(pix_pt[0],pix_pt[1])
+                                if not (math.isnan(point3D[0]) or math.isnan(point3D[1]) or math.isnan(point3D[2])):
+                                    # print("Inserting new landmark")
+                                    # curr_kp_dict[l] = total_obsv_features # value is last index
+                                    measurement = Point2(pix_pt[0],pix_pt[1])
+                                    factor = GenericProjectionFactorCal3_S2(
+                                        measurement, camera_noise, X(0), L(total_obsv_features), K)
+                                    # print("total observations: ", total_obsv_features)
+                                    graph.push_back(factor)
+
+                                    point_noise = gtsam.noiseModel.Isotropic.Sigma(3, .1*1000)
+                                    pt0 = Point3(point3D[0],point3D[1],point3D[2])
+                                    # pt0 = Point3(0,0,0)
+                                    factor = PriorFactorPoint3(L(total_obsv_features), pt0, point_noise)
+                                    graph.push_back(factor)
+
+                                    init_lj = Point3(point3D[0],point3D[1],point3D[2])
+                                    initial_estimate.insert(L(total_obsv_features), init_lj)
+                                    total_obsv_features += 1
 
     # Update iSAM with the new factors
     isam.update(graph, initial_estimate)
