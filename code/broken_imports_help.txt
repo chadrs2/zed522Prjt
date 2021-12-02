@@ -1,0 +1,46 @@
+OPENCV Fix for errors with using SIFT:
+	$ pip3 uninstall opencv-contrib-python
+	$ pip3 uninstall opencv-python
+	$ pip3 install -r ../requirements.txt
+	
+Fix MATPLOTLIB Errors:
+	$ pip3 install opencv-python==4.3.0.36
+	
+
+My current broken system versions:
+	opencv-python==4.3.0.36
+	opencv-contrib-python==4.5.4.60
+	matplotlib==3.4.3
+	
+Try:
+	$ pip3 uninstall matplotlib
+	$ pip3 install matplotlib==3.1.2
+	
+	
+########## DEPENCENCY CONFLICT WITH NUMBA AND NUMPY 1.21.4 ##########
+	
+	
+Comparison:
+			Chad:		Derek:		Requirements:
+gtsam			4.1.0		4.1.0		4.1.0
+matplotlib		3.1.2		3.1.2		3.1.2
+matplotlib-inline 	0.1.3		n/a		0.1.3
+numba			0.54.0		0.54.0		0.54.0
+numpy			1.20.3		1.21.4		1.20.3
+numpy-stl		n/a		2.8.0		n/a
+opencv-contrib-python	4.5.4.60	4.5.4.60	4.5.4.60
+pip			21.3.1		20.0.2		n/a
+PyQt5			5.15.6		5.14.1		5.15.6
+PyQt5-Qt5		5.15.2		n/a		5.15.2
+PyQt5-sip		12.9.0		n/a		12.9.0
+QtPy			1.11.2		n/a		1.11.2
+
+Steps taken to match my python env with Derek's:
+	1)	$ pip3 uninstall matplotlib-inline
+	2)	$ pip3 install numpy==1.21.4
+	3)	$ pip3 install numpy-stl==2.8.0
+	4)	$ pip3 install pyqt5==5.14.1 <-----fixed error!!!!!!
+	
+Solution:
+	- Comment out numba in requirements.txt, since it's not needed and adds in conflictions
+	- Install pyqt5==5.14.1
