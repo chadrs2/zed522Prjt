@@ -180,7 +180,7 @@ def main():
             progress_bar((svo_position + 1) / nb_frames * 100, 30)
 
             # Check if we have reached the end of the video
-            if svo_position >= (nb_frames - 1):  # End of SVO
+            if svo_position >= (nb_frames - 2):  # End of SVO
                 sys.stdout.write("\nSVO end has been reached. Exiting now.\n")
                 break
 
