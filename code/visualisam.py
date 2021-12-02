@@ -54,9 +54,9 @@ def visual_ISAM2_plot(result):
         i += 1
 
     # draw
-    # axes.set_xlim3d(-40, 40)
-    # axes.set_ylim3d(-40, 40)
-    # axes.set_zlim3d(-40, 40)
+    axes.set_xlim3d(-1000, 1000)
+    axes.set_ylim3d(-1000, 1000)
+    axes.set_zlim3d(-1000, 1000)
     # plt.pause(1)
 
 def main():
@@ -154,14 +154,29 @@ def main():
             #noise = Pose3(r=Rot3.Rodrigues(-0.1, 0.2, 0.25),
                         #   t=Point3(0.05, -0.10, 0.20))
             #initial_xi = noise
-            initial_xi = Pose3(
-                Rot3(1,0,0, 0,1,0, 0,0,1),
-                Point3(0,0,0)
-            )
-
+            
+            # Human motion model walking
+            # Estimated walking movement (1.4m/s to millimeters) / frame rate
+            # Camera is 30 fps
+            x_dist = (1.4 * 1000) / 30
+            x_dist = -x_dist    # we're walking left in respect to the frame, which is negative in Zed frame
+            if i == 0:
+                initial_xi = Pose3(
+                    Rot3(1,0,0, 0,1,0, 0,0,1),
+                    Point3(0,0,0)
+                )
+            elif i == 1:
+                initial_xi = Pose3(
+                    Rot3(1,0,0, 0,1,0, 0,0,1),
+                    Point3(0,0,0)
+                )
+            else:   # Insert wheel odometry here
+                # T = np.asarray(prev_transform.matrix())
+                initial_xi = prev_transform
+                
             # Add an initial guess for the current pose
             initial_estimate.insert(X(i), initial_xi)
-        
+
             # If this is the first iteration, add a prior on the first pose to set the coordinate frame
             # and a prior on the first landmark to set the scale
             # Also, as iSAM solves incrementally, we must wait until each is observed at least twice before
@@ -181,7 +196,7 @@ def main():
 
                 # Add a prior on pose x0, with 0.3 rad std on roll,pitch,yaw and 0.1m x,y,z
                 pose_noise = gtsam.noiseModel.Diagonal.Sigmas(
-                    np.array([0.3, 0.3, 0.3, 0.1*1000, 0.1*1000, 0.1*1000]))
+                    np.array([0.3, 0.3, 0.3, 0.01*1000, 0.01*1000, 0.01*1000]))
                 pose0 = Pose3(
                     Rot3(1,0,0, 0,1,0, 0,0,1),
                     Point3(0,0,0)
@@ -208,8 +223,15 @@ def main():
                     init_lj = Point3(point3D[0],point3D[1],point3D[2])
                     if not (math.isnan(point3D[0]) or math.isnan(point3D[1]) or math.isnan(point3D[2])):
                         initial_estimate.insert(L(j), init_lj)
-
-                        point_noise = gtsam.noiseModel.Isotropic.Sigma(3, 0.1*1000)
+                        dist = math.sqrt(point3D[0]**2 + point3D[1]**2 + point3D[2]**2)
+                        if dist < 10:
+                            error = 0.005 * 1000
+                        elif dist < 15:
+                            error = 0.05 * 1000
+                        else:
+                            error = 0.1 * 1000
+                        
+                        point_noise = gtsam.noiseModel.Isotropic.Sigma(3, error)
                         factor = PriorFactorPoint3(L(j), init_lj, point_noise)
                         graph.push_back(factor)
 
@@ -286,7 +308,15 @@ def main():
                             total_obsv_features += 1
 
                             # TODO: poss. do prior here on each of these new landmarks
-                            point_noise = gtsam.noiseModel.Isotropic.Sigma(3, 0.1*1000)
+                            dist = math.sqrt(point3D[0]**2 + point3D[1]**2 + point3D[2]**2)
+                            if dist < 10:
+                                error = 0.0005 * 1000
+                            elif dist < 15:
+                                error = 0.005 * 1000
+                            else:
+                                error = .01 * 1000
+                            
+                            point_noise = gtsam.noiseModel.Isotropic.Sigma(3, error)
                             factor = PriorFactorPoint3(L(curr_kp_dict[l]), init_lj, point_noise)
                             graph.push_back(factor)
                 # print(curr_kp_dict)
