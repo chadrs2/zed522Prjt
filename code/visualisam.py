@@ -54,9 +54,9 @@ def visual_ISAM2_plot(result):
         i += 1
 
     # draw
-    axes.set_xlim3d(-1000, 1000)
-    axes.set_ylim3d(-1000, 1000)
-    axes.set_zlim3d(-1000, 1000)
+    # axes.set_xlim3d(-1000, 1000)
+    # axes.set_ylim3d(-1000, 1000)
+    # axes.set_zlim3d(-1000, 1000)
     # plt.pause(1)
 
 def main():
@@ -327,6 +327,9 @@ def main():
                 #     isam.update()
                 current_estimate = isam.estimate()
                 prev_transform = current_estimate.atPose3(X(i))
+
+                # visual_ISAM2_plot(current_estimate)
+                # plt.show()
 
 
                 # print('*' * 50)
