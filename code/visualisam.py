@@ -328,6 +328,9 @@ def main():
                 current_estimate = isam.estimate()
                 prev_transform = current_estimate.atPose3(X(i))
 
+                # visual_ISAM2_plot(current_estimate)
+                # plt.show()
+
 
                 # print('*' * 50)
                 # print('Frame {}:'.format(i))
