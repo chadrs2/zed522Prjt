@@ -133,10 +133,10 @@ def main():
                 # continue
             # else:
                 # i= i - 30
-            if False: #i >= 100:
-                # only get first 2 frames
-                print("finished retrieving",i,"images")
-                break
+            # if i >= 100:
+            #     # only get first X frames
+            #     print("finished retrieving",i,"images")
+            #     break
             print(i)
             # A new image and depth is available if grab() returns SUCCESS
             zed.retrieve_image(left_cam_rgba, sl.VIEW.LEFT) # Retrieve left image
