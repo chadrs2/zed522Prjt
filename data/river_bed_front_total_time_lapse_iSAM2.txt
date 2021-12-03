@@ -1,0 +1,5 @@
+Total Lapsed Time in seconds for Riverbed front: 72.64780592918396 <- for 1 repeat iterations
+Total Lapsed Time in seconds for Riverbed front: 83.04805374145508 <- for 10 repeat iterations
+Total Lapsed Time in seconds for Riverbed front: 72.21471691131592 <- for 0 repeat iterations
+Total Lapsed Time in seconds for Riverbed front: 7.052659273147583 <- for 1 iterations every 10 frames
+

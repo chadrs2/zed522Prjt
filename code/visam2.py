@@ -124,10 +124,10 @@ def main():
     # will approach the batch result.
     parameters = gtsam.ISAM2Params()
     parameters.setRelinearizeThreshold(
-        0.01
+        0.1
     )  # TODO default is .1, we should play around with this
     parameters.setRelinearizeSkip(
-        1
+        10
     )  # TODO default is 10, we should play around with this
     isam = gtsam.ISAM2(parameters)
 
@@ -164,13 +164,19 @@ def main():
     total_obsv_features = 0
     prev_transform = None
     time_calc = []
-    plt.ion()
+    # plt.ion()
     while True:
         err = zed.grab(runtime)
         if err == sl.ERROR_CODE.SUCCESS:
             # Get frame count
             start_time = time.time()
             i = zed.get_svo_position()
+
+            if i % 10 != 0:
+                continue
+            else:
+                i = int(i / 10)
+            
             # if i < 30:
             # continue
             # else:
@@ -179,7 +185,9 @@ def main():
             #     # only get first X frames
             #     print("finished retrieving",i,"images")
             #     break
-            print(i)
+
+            # print(i)
+            
             # A new image and depth is available if grab() returns SUCCESS
             zed.retrieve_image(left_cam_rgba, sl.VIEW.LEFT)  # Retrieve left image
             zed.retrieve_measure(depth_map, sl.MEASURE.DEPTH)  # Retrieve depth
@@ -303,7 +311,8 @@ def main():
                 for m, n in knn_matches:
                     if m.distance < ratio_thresh * n.distance:
                         good_matches.append(m)
-                print("Found matches:", len(good_matches))
+                # print("Found matches:", len(good_matches))
+
                 # Appropriately add in factors correlated to matched features from previous image
                 for match in good_matches:
                     prev_img_feat_idx = match.queryIdx
@@ -401,7 +410,7 @@ def main():
                     isam.update()
                 current_estimate = isam.calculateEstimate()
 
-                current_estimate = isam.estimate()
+                # current_estimate = isam.estimate()
 
                 prev_transform = current_estimate.atPose3(X(i))
 
@@ -419,15 +428,23 @@ def main():
                 prev_des = descriptors2
                 prev_img = img2_rgb
                 time_calc.append(time.time() - start_time)
-                visual_ISAM2_plot(current_estimate)
-
+                # visual_ISAM2_plot(current_estimate)
+        
         elif err == sl.ERROR_CODE.END_OF_SVOFILE_REACHED:
             print("SVO end has been reached.")  # Looping back to first frame")
             # zed.set_svo_position(0)
             break
-
-    plt.ioff()
+    visual_ISAM2_plot(current_estimate)
+    # plt.ioff()
+    
+    plt.figure(1)
+    plt.plot(time_calc); 
+    plt.title("Time Lapsed for iSAM2 Approach")
+    plt.xlabel("Frame Count")
+    plt.ylabel("t (sec)")
     plt.show()
+
+    print("Total Lapsed Time in seconds for Riverbed front:",sum(time_calc))
 
     # Clear the factor graph and values for the next iteration
 
