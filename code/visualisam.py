@@ -11,6 +11,7 @@ This version uses iSAM to solve the problem incrementally
 from __future__ import print_function
 
 import sys
+import time
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -101,7 +102,7 @@ def main():
 
     # Create a NonlinearISAM object which will relinearize and reorder the variables
     # every "reorderInterval" updates
-    isam = NonlinearISAM(reorderInterval=3)
+    isam = NonlinearISAM(reorderInterval=10)
 
     # Create a Factor Graph and Values to hold the new data
     graph = NonlinearFactorGraph()
@@ -124,9 +125,12 @@ def main():
     prev_kp_dict = {}
     total_obsv_features = 0
     prev_transform = None
+    time_calc = []
+
     while True:
         err = zed.grab(runtime)
         if err == sl.ERROR_CODE.SUCCESS:
+            start_time = time.time()
             # Get frame count
             i = zed.get_svo_position()
             # if i < 30:
@@ -137,7 +141,7 @@ def main():
             #     # only get first X frames
             #     print("finished retrieving",i,"images")
             #     break
-            print(i)
+            # print(i)
             # A new image and depth is available if grab() returns SUCCESS
             zed.retrieve_image(left_cam_rgba, sl.VIEW.LEFT) # Retrieve left image
             zed.retrieve_measure(depth_map, sl.MEASURE.DEPTH) # Retrieve depth
@@ -225,11 +229,11 @@ def main():
                         initial_estimate.insert(L(j), init_lj)
                         dist = math.sqrt(point3D[0]**2 + point3D[1]**2 + point3D[2]**2)
                         if dist < 10:
-                            error = 0.005 * 1000
+                            error = 0.05 * 1000
                         elif dist < 15:
                             error = 0.05 * 1000
                         else:
-                            error = 0.1 * 1000
+                            error = 0.05 * 1000
                         
                         point_noise = gtsam.noiseModel.Isotropic.Sigma(3, error)
                         factor = PriorFactorPoint3(L(j), init_lj, point_noise)
@@ -257,7 +261,7 @@ def main():
                 for m,n in knn_matches:
                     if m.distance < ratio_thresh * n.distance:
                         good_matches.append(m)
-                print("Found matches:",len(good_matches))
+                # print("Found matches:",len(good_matches))
                 # Appropriately add in factors correlated to matched features from previous image        
                 for match in good_matches:
                     prev_img_feat_idx = match.queryIdx
@@ -310,11 +314,11 @@ def main():
                             # TODO: poss. do prior here on each of these new landmarks
                             dist = math.sqrt(point3D[0]**2 + point3D[1]**2 + point3D[2]**2)
                             if dist < 10:
-                                error = 0.0005 * 1000
+                                error = 0.005 * 1000
                             elif dist < 15:
                                 error = 0.005 * 1000
                             else:
-                                error = .01 * 1000
+                                error = .005 * 1000
                             
                             point_noise = gtsam.noiseModel.Isotropic.Sigma(3, error)
                             factor = PriorFactorPoint3(L(curr_kp_dict[l]), init_lj, point_noise)
@@ -342,18 +346,28 @@ def main():
 
                 # Update previous variables
                 prev_kp_dict = curr_kp_dict
-                prev_kp = key_pts2
+                #prev_kp = key_pts2
                 prev_des = descriptors2
-                prev_img = img2_rgb
+                #prev_img = img2_rgb
+
+                time_calc.append(time.time() - start_time)
 
         elif err == sl.ERROR_CODE.END_OF_SVOFILE_REACHED:
             print("SVO end has been reached.")# Looping back to first frame")
             # zed.set_svo_position(0)
             break
 
+    print("Total Elapsed Time in seconds for RiverBed front: ", sum(time_calc))
+    
     visual_ISAM2_plot(current_estimate)
+    plt.figure(1)
+    
+    # plt.scatter([tt for tt in range(len(time_calc))], time_calc)
+    plt.plot(time_calc)
+    plt.title("Time Elapsed for iSAM Approach")
+    plt.xlabel("Frame Count")
+    plt.ylabel("t (sec)")
     plt.show()
-
                 # Clear the factor graph and values for the next iteration
 
     zed.close()

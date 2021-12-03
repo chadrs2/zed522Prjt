@@ -1,0 +1,2 @@
+Total Elapsed Time in seconds for RiverBed front:  85.91008758544922
+Total Elapsed Time in seconds for RiverBed front:  86.27065181732178
