@@ -85,6 +85,9 @@ def main():
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()
 
+                # Save image
+                cv2.imwrite("../data/feat_matched/frames_"+str(svo_position)+"_"+str(svo_position-1)+".png",img_matches)
+
                 #-- Draw corresponding keypoint at 0
                 # out_img1 = np.empty((prev_img.shape[0], prev_img.shape[1], prev_img.shape[2]),dtype=np.uint8)
                 # out_img2 = np.empty((img2_rgb.shape[0], img2_rgb.shape[1], img2_rgb.shape[2]),dtype=np.uint8)
